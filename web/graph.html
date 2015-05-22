@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+  
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="shortcut icon" href="http://tarantool.org/theme/favicon.ico">
+    <title>Tarantool demo</title>
+    <link href="https://netdna.bootstrapcdn.com/bootstrap/3.0.0/css/bootstrap.min.css" rel="stylesheet">
+    <link href="http://visjs.org/dist/vis.css" rel="stylesheet">
+    <style>
+         	body {
+		  padding-top: 50px;
+		}
+		.starter-template {
+		  padding: 40px 15px;
+		}
+                .error label{
+                  color: red;
+                }
+    </style>
+</head>
+  
+  <body>
+    <div class="navbar navbar-default navbar-fixed-top">
+      <div class="container">
+        <div class="navbar-header">
+          <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a class="navbar-brand" href="http://tarantool.org"><img width="20px" height="20px" src="http://tarantool.org/theme/favicon.ico">Tarantool</a>
+        </div>
+        <div class="collapse navbar-collapse">
+          <ul class="nav navbar-nav">
+            <li class="active">
+              <a href="/">Demo</a>
+            </li>
+            <li>
+              <a href="http://bench.farm.tarantool.org">Bench</a>
+            </li>
+            <li>
+              <a href="http://farm.tarantool.org/waterfall">Build farm</a>
+            </li>
+          </ul>
+        </div>
+        <!--/.nav-collapse -->
+      </div>
+    </div>
+    <div class="container">
+      <div class="starter-template">
+        <h1>
+          Wikipedia category intersecton
+        </h1>
+        <div class="form-group col-xs-10">
+          <input type="text" class="form-control" id="search_to"></input>
+        </div>
+        <div class="form-group col-xs-1">
+          <button id="lookup" type="submit" class="btn btn-success load_btn">Lookup</button>
+        </div>
+      </div>
+      <div id="graph" width="2048" height="1400" />
+      <div id="container" style="width:100%; height:600px;">
+        </div>
+    </div>
+    <!-- /.container -->
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
+    <script src="https://netdna.bootstrapcdn.com/bootstrap/3.0.0/js/bootstrap.min.js"></script>
+    <script src="http://visjs.org/dist/vis.js"></script>
+    <script>
+      var graphJSON = {
+          "nodes": [],
+          "edges": []
+      };
+
+      function push(name, tuple){
+          var find = false;
+          $.map(graphJSON[name], function(item){
+              if(tuple.id == item.id){
+                  find = true; 
+              }
+          });
+          if(!find){
+              graphJSON[name].push(tuple);
+          }
+      }
+      
+      function draw(){
+          var container = document.getElementById('graph');
+          var options = {
+              height: '1100px', //zoomView: false,
+              groups: {
+                  1: {
+                      shape: 'box',
+                      color: {
+                          border: '#4cae4c',
+                          background: '#5cb85c',
+                          highlight: {
+                              border: 'yellow',
+                              background: 'orange'
+                          }
+                      }
+                  },
+                  2: {
+                      shape: 'box',
+                      color: {
+                          border: "#97C2FC",
+                          background: "#97C2FC",
+                          highlight: {
+                              border: 'yellow',
+                              background: 'orange'
+                          }
+                      }
+                  }
+              }
+          };
+          var network = new vis.Network(container, graphJSON, options);
+      }
+
+      function lookup(){
+          var data = {method: "lookup", id: 0, params: [$('#search_to').val()] };
+          $.post('/tarantool', JSON.stringify(data), function(resp){
+              graphJSON.nodes = [];
+              graphJSON.edges = [];
+              var words = JSON.parse(resp);
+
+              $.map(words.result, function(tuple){
+                  push('nodes', {id: tuple[2], label: tuple[2], group: 1});
+                  $.map(tuple[3], function(cat){
+                      push('nodes', {id: cat, label: cat, group: 2});
+                      graphJSON.edges.push({ from:tuple[2], to: cat});
+                  });
+              });
+          });
+          draw();
+      }
+
+      var timer;
+      $('#search_to').keydown(function() {
+        if (timer) {
+            clearTimeout(timer);
+        }
+
+        if (this.length == 0) {
+            // later we can show some msg
+        } 
+        else{
+            console.log('key');
+            timer = setTimeout(function() {
+                console.log('lk time');
+                lookup();
+            }, 200);
+        }
+      });
+
+      $(document).ready(function($) {
+          $(document).on('click', '#lookup', lookup);
+          $(document).keypress(function(e) {
+              if(e.which == 13) {
+                  lookup();
+              }
+         });
+      });
+    </script>
+  </body>
+</html>
