@@ -11,4 +11,4 @@ Wikipedia category graph lookup with tarantool.
 
 [Nginx upstream module](https://github.com/tarantool/nginx_upstream_module)
 
-Web UI
+[Web UI](https://github.com/Sulverus/tarantool-wiki-lookup/tree/master/web)
