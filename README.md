@@ -3,6 +3,7 @@
 This project is 'how-to' project.
 
 Main purpose of this project is to demonstrate how to handle big dataset by using Tarantool Nginx module and Tarantool Shard for work with big and complex dataset.
+
 'big/complex dataset' are Wikipedia's categories.
 
 Main functional is:
