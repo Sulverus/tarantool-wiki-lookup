@@ -2,6 +2,7 @@
 local log = require('log')
 local shard = require('shard')
 local yaml = require('yaml')
+local fiber = require('fiber')
 
 local GROUP_INDEX = 4
 
@@ -19,10 +20,10 @@ function load_data(tuples)
         end)
         if not status then
             if reason:find('^Duplicate') ~= nil then
-                log.error('failed to insert id = %s: %s', tuple[1],
+                log.error('failed to insert account_id = %s: %s', tuple[1],
                     reason)
             else
-                die('failed to insert id = %s: %s', tuple[1],
+                die('failed to insert account_id = %s: %s', tuple[1],
                     reason)
             end
         end
@@ -44,22 +45,25 @@ local function load_batch(args)
     end
 end
 
-local function process_cat(name, id)
+local function process_cat(name, tuples)
     local data = box.space.cat:select{name}
     if data[1] == nil then
-        shard.cat:insert{name, id}
-        return
+        shard.cat:insert{name}
     end
-    shard.cat:update(name, {{'!', -1, id}})
+    shard.cat:update(name, tuples)
 end
 
 local function compute()
     local pages = box.space.wiki:select{}
     for _, page in pairs(pages) do
         if page[GROUP_INDEX][1] ~= nil then
+            local data = {}
+            local i = 1
             for _, cat in pairs(page[GROUP_INDEX]) do
-                process_cat(cat, page[1])
+                shard.cat:auto_increment{cat, page[1]}
+                i = i + 1
             end
+            --collectgarbage('collect')
         end
     end
 end
@@ -117,7 +121,8 @@ local function start(cfg)
         wiki:create_index('title', {type = 'hash', parts = {3, 'str'}})
         log.info('bootstrapped') 
         local cat = box.schema.create_space('cat')
-        cat:create_index('primary', {type = 'hash', parts = {1, 'str'}})
+        cat:create_index('primary', {type = 'tree', parts = {1, 'num'}})
+        cat:create_index('second', {type = 'tree', unique=false, parts = {2, 'str'}})
     end
 
     -- Start binary port
@@ -141,12 +146,16 @@ local function lookup(word)
     groups = box.space.wiki.index.title:select(word)[1][GROUP_INDEX]
 
     for _, name in pairs(groups) do
-        local data = box.space.cat:get{name}
-        for _, id in pairs(data) do
+        if string.match(name, 'Вики') == nil then
+        local data = box.space.cat.index[1]:select(name, {limit=100})
+        log.info('category count=%d', #data)
+        for _, tuple in pairs(data) do
+            local id = tuple[3]
             if type(id) == 'number' then
                 result[count] = box.space.wiki:get(id)
                 count = count + 1
             end
+        end
         end
     end
     return result
