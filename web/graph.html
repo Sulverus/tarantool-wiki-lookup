@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-  
+
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -9,11 +9,11 @@
     <link href="https://netdna.bootstrapcdn.com/bootstrap/3.0.0/css/bootstrap.min.css" rel="stylesheet">
     <link href="http://visjs.org/dist/vis.css" rel="stylesheet">
     <style>
-         	body {
-		  padding-top: 50px;
-		}
-		.starter-template {
-		  padding: 40px 15px;
+    body {
+      padding-top: 50px;
+    }
+    .starter-template {
+      padding: 40px 15px;
     }
     .informers h3{
       width: 30%;
@@ -22,12 +22,18 @@
       float: right;
       min-width: 92px;
     }
-                .error label{
-                  color: red;
-                }
+    .error label{
+      color: red;
+    }
+    #loader{
+      display: none;
+    }
+    #no_data{
+      display: none;
+    }
     </style>
 </head>
-  
+
   <body>
     <div class="navbar navbar-default navbar-fixed-top">
       <div class="container">
@@ -45,10 +51,7 @@
               <a href="/">Demo</a>
             </li>
             <li>
-              <a href="http://bench.farm.tarantool.org">Bench</a>
-            </li>
-            <li>
-              <a href="http://farm.tarantool.org/waterfall">Build farm</a>
+              <a href="https://github.com/Sulverus/tarantool-wiki-lookup">Github</a>
             </li>
           </ul>
         </div>
@@ -68,6 +71,12 @@
         <div class="form-group col-xs-1">
           <button id="lookup" type="submit" class="btn btn-success load_btn">Lookup</button>
         </div>
+        <div class="form-group col-xs-10" id='loader'>
+          <h3>Loading...</h3>
+        </div>
+        <div class="form-group col-xs-10" id='no_data'>
+          <h2>Not found</h2>
+        </div>
         <div class="form-group col-xs-10 informers" id='informer' style='display: none'>
           <h3>Words count <span class="label label-info">3605734</span></h3>
           <h3>Links count <span class="label label-info" >3423402</span></h3>
@@ -76,130 +85,177 @@
           <h3>Visualization</h3>
         </div>
 
-      <ul id="tdata"></ul> 
+      <ul id="tdata"></ul>
       </div>
     </div>
-      <div id="graph" width="2048" height="1400" />
-      <div id="container" style="width:100%; height:600px;">
-        </div>
-    
+    <div id="graph" width="2048" height="1400">
+    </div>
+
     <!-- /.container -->
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
     <script src="https://netdna.bootstrapcdn.com/bootstrap/3.0.0/js/bootstrap.min.js"></script>
     <!-- <script src="http://visjs.org/dist/vis.js"></script> -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vis/3.12.0/vis.min.js"></script>
+
     <script>
+
       var graphJSON = {
           "nodes": [],
           "edges": []
       };
 
-      function get_query_string(){
+      var $tdata = $("#tdata"),
+          $informer = $("#informer"),
+          $graph = $("#graph"),
+          $search_to = $("#search_to"),
+          $wcount = $("#wcount"),
+          $loader = $('#loader'),
+          $no_data = $('#no_data'),
+          cur_url = window.location.protocol +
+                    "//" + window.location.host + window.location.pathname;
+          ;
+
+      function get_query_string() {
         var vars = [], hash;
-        var hashes = window.location.href.slice(window.location.href.indexOf('?') + 1).split('&');
-        for(var i = 0; i < hashes.length; i++)
-        {
-          hash = hashes[i].split('=');
+        var hashes = window.location.href.slice(
+                        window.location.href.indexOf("?") + 1).split("&");
+        for (var i = 0; i < hashes.length; i++) {
+          hash = hashes[i].split("=");
           vars.push(hash[0]);
           vars[hash[0]] = hash[1];
         }
+
         return vars;
       }
 
-      function push(name, tuple){
-          var find = false;
-          $.map(graphJSON[name], function(item){
-              if(tuple.id == item.id){
-                  find = true; 
-              }
-          });
-          if(!find){
-              graphJSON[name].push(tuple);
-          }
-      }
-      
-      function draw(){
-          var container = document.getElementById('graph');
-          var options = {
-            height: '1100px', 
-            //interaction: {zoomView: false},
-            zoomable: false,
-              groups: {
-                  1: {
-                      shape: 'box',
-                      color: {
-                          border: '#4cae4c',
-                          background: '#5cb85c',
-                          highlight: {
-                              border: 'yellow',
-                              background: 'orange'
-                          }
-                      }
-                  },
-                  2: {
-                      shape: 'box',
-                      color: {
-                          border: "#97C2FC",
-                          background: "#97C2FC",
-                          highlight: {
-                              border: 'yellow',
-                              background: 'orange'
-                          }
-                      }
-                  }
-              }
-          };
-          var network = new vis.Network(container, graphJSON, options);
+      function push(name, tuple) {
+        var find = false;
+        $.map(graphJSON[name], function(item) {
+            if(tuple.id == item.id){
+                find = true;
+            }
+        });
+        if(!find){
+            graphJSON[name].push(tuple);
+        }
       }
 
-      function lookup(){
-          var data = {method: "lookup", id: 0, params: [$('#search_to').val()] };
-          $('#tdata').html('');
-          $('#informer').hide();
-          graphJSON.nodes = [];
-          graphJSON.edges = [];
-          $.post('/tarantool', JSON.stringify(data), function(resp){
-            var words = JSON.parse(resp);
-            console.log('total words counts:');
-            console.log(words.result.length);
-            $('#wcount').html(words.result.length);
-            $('#informer').show();
-              for(var i=0;i<words.result.length;i++){
-                if(i > 20){
-                    break;
+      function draw() {
+        network = new vis.Network(
+          document.getElementById("graph"),
+          graphJSON,
+          {
+            height: "1100px",
+            zoomable: false,
+            groups: {
+              1: {
+                shape: "box",
+                color: {
+                  border: "#4cae4c",
+                  background: "#5cb85c",
+                  highlight: {
+                      border: "yellow",
+                      background: "orange"
+                  }
                 }
-                var name = words.result[i][2];
-                var cat_list = words.result[i][3];
-                push('nodes', {id: name, label: name, group: 1});
-                  $.map(cat_list, function(cat){
-                    if(cat.toLowerCase().indexOf('вики') < 0){
-                      push('nodes', {id: cat, label: cat, group: 2});
-                      graphJSON.edges.push({ from:name, to: cat});
-                    }
-                  });
+              },
+              2: {
+                shape: "box",
+                color: {
+                  border: "#97C2FC",
+                  background: "#97C2FC",
+                  highlight: {
+                    border: "yellow",
+                    background: "orange"
+                  }
+                }
               }
-              draw();
-              var new_url = cur_url + '?lookup=' +
-                encodeURIComponent($('#search_to').val());
-              if (history.pushState) {
-                  window.history.pushState({path:new_url},'',new_url);
-              }
-          });
-      }
-      var cur_url = window.location.protocol + "//" + window.location.host +
-        window.location.pathname;
-      $(document).ready(function($) {
-          $(document).on('click', '#lookup', lookup);
-          $(document).keypress(function(e) {
-              if(e.which == 13) {
-                  lookup();
-              }
-          });
-          var params = get_query_string();
-          if(params.lookup){
-            $('#search_to').val(decodeURIComponent(params.lookup));
-            lookup();
+            }
           }
+        );
+
+        $loader.hide();
+        $informer.show();
+      }
+
+      function reset() {
+        var canvas = $('#graph canvas');
+        if (canvas.length){
+          var ctx = canvas[0].getContext("2d");
+          ctx.clearRect(0, 0, canvas[0].width, canvas[0].height);
+        }
+
+        $tdata.html("");
+        $informer.hide();
+        $no_data.hide();
+
+        graphJSON.nodes = [];
+        graphJSON.edges = [];
+      }
+
+      function sanitize(s){
+        var text = s[0].toUpperCase() + s.substr(1, s.length);
+        return text.replace(/ +(?= )/g,'').replace(/ /g, "_");
+      }
+
+      function lookup() {
+
+        var call_method = JSON.stringify({
+          method: "lookup", id: 0, params: [sanitize($search_to.val())]
+        });
+
+        reset();
+        $loader.show();
+
+        $.post("/tarantool", call_method, function(resp) {
+          if(resp.result == undefined){
+            $no_data.show();
+            $loader.hide();
+            return;
+          }
+
+          $wcount.html(resp.result.length);
+
+          for (var i = 0, len = Math.min(resp.result.length, 30);
+               i < len; i++)
+          {
+            var name = resp.result[i][2],
+                cat_list = resp.result[i][3]
+                ;
+            push("nodes", { id: name, label: name, group: 1 });
+            $.map(cat_list, function(cat) {
+              if (cat.toLowerCase().indexOf('вики') < 0){
+                push("nodes", { id: cat, label: cat, group: 2 });
+                graphJSON.edges.push({ from:name, to: cat});
+              }
+            });
+          }
+
+          draw();
+
+          if (history.pushState) {
+            var new_url = cur_url + "?lookup=" +
+                encodeURIComponent($search_to.val());
+            window.history.pushState( { path: new_url }, "", new_url);
+          }
+
+        });
+      }
+
+      $(document).ready(function() {
+
+        var params = get_query_string();
+        if (params.lookup) {
+          $search_to.val(decodeURIComponent(params.lookup));
+          lookup();
+        }
+
+        $(document).on("click", "#lookup", lookup);
+        $(document).keypress(function(e) {
+          if (e.which == 13)
+            lookup();
+        });
+
       });
     </script>
   </body>

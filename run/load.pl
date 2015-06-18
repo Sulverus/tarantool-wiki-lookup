@@ -1,8 +1,7 @@
-#!/usr/bin/perl
+#!/usr/bin/perl -w
 
 use strict;
 use warnings;
-
 use utf8;
 
 use JSON;
@@ -48,10 +47,11 @@ sub do_send($$$)
   warn "load.pl got content: ", $resp->content() if $params->{verbose};
 
   if ($resp->is_success) {
-    my $a = eval { decode_json($resp->content) };
+    my $a = eval { decode_json($resp->content); };
     if ($@) {
       warn "load.pl: ", $@," content: ", $resp->content, "\n";
       ++$stat->{decode_json_errors};
+      exit 1;
     } else {
       ++$stat->{decode_json_oks};
     }
