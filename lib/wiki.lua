@@ -20,10 +20,10 @@ function load_data(tuples)
         end)
         if not status then
             if reason:find('^Duplicate') ~= nil then
-                log.error('failed to insert account_id = %s: %s', tuple[1],
+                log.error('failed to insert  %s: %s', tuple[1],
                     reason)
             else
-                die('failed to insert account_id = %s: %s', tuple[1],
+                die('failed to insert = %s: %s', tuple[1],
                     reason)
             end
         end
