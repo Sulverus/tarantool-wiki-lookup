@@ -1,6 +1,6 @@
 # tarantool-wiki-lookup
 
-This project is 'how-to' project.
+This is 'how-to' project.
 
 Main purpose of this project is to demonstrate how to handle big dataset by using Tarantool Nginx module and Tarantool Shard for work with big and complex dataset.
 
@@ -21,3 +21,6 @@ Main functional is:
 [Nginx upstream module](https://github.com/tarantool/nginx_upstream_module)
 
 [Web UI](https://github.com/Sulverus/tarantool-wiki-lookup/tree/master/web)
+
+###Example
+View [live demo](http://wiki.build.tarantool.org)
